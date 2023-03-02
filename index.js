@@ -140,17 +140,21 @@ parser.parseString(opmlFile, async (err, result) => {
 
           if (image && !tags.image) {
             // download image and put it into imageBuffer
-            const res = await fetch(image);
-            const imageBuffer = Buffer.from(await res.arrayBuffer());
+            try {
+              const res = await fetch(image, { timeout: 60000 });
+              const imageBuffer = Buffer.from(await res.arrayBuffer());
 
-            id3Tags.image = {
-              mime: image.includes('.jpg') ? 'image/jpeg' : 'image/png',
-              type: {
-                id: TagConstants.AttachedPicture.PictureType.FRONT_COVER,
-              },
-              description: 'Cover image',
-              imageBuffer,
-            };
+              id3Tags.image = {
+                mime: image.includes('.jpg') ? 'image/jpeg' : 'image/png',
+                type: {
+                  id: TagConstants.AttachedPicture.PictureType.FRONT_COVER,
+                },
+                description: 'Cover image',
+                imageBuffer,
+              };
+            } catch (ex) {
+              console.error(`Error downloading image: ${ex.message}`);
+            }
           }
 
           update(id3Tags, filePath);
@@ -166,7 +170,7 @@ parser.parseString(opmlFile, async (err, result) => {
         return downloadRSSFeed(nextFeedUrl);
       }
     } catch (error) {
-      console.error(`[ERROR] Processing ${feedUrl} - ${error}`);
+      console.error(`[ERROR] ${feedUrl} - ${error}`);
     }
   };
 
