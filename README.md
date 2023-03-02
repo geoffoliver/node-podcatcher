@@ -2,7 +2,7 @@
 
 This is something I wrote<sup>*</sup> because my podcatcher of choice has a few very nasty bugs that I just couldn't deal with. So, until the developer fixes them, I'm using this. I just need something to download podcasts and put 'em in a folder so I can play them with VLC. This does exactly that.
 
-<sup>*</sup> I didn't "write" the whole thing. I started it by asking ChatGPT to write some code for me, and then I tweaked the shit out of it. This is the result.
+_<sup>*</sup>I didn't "write" the whole thing. I started it by asking ChatGPT to write some code for me, and then I tweaked the shit out of it. This is the result._
 
 # Installation
 
