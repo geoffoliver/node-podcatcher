@@ -18,7 +18,7 @@ yarn install
 yarn start --opml <path to OPML file> --output <path to output folder>
 ```
 
-By default, this will download the most recent episode of each podcast, that is not more than **one (1)** day old, **five (5)** episodes at a time. You can change these settings using the `--age` and `--max` flags, like so:
+By default, this will download the most recent episode of each podcast, that is not more than **one (1)** day old, **five (5)** podcasts at a time. You can change these settings using the `--age` and `--max` flags, like so:
 
 ```bash
 yarn start --opml ~/pods/list.opml --output ~/pods/ --age 7 --max 3
