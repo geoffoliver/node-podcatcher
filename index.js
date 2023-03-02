@@ -131,17 +131,15 @@ parser.parseString(opmlFile, async (err, result) => {
         const downloaded = await downloadPodcast(episodeUrl, filePath, shortPath);
 
         if (downloaded) {
-          const tags = read(filePath);
           const id3Tags = {
             date: formattedDate,
             title: episodeTitle,
             artist: artistName,
           };
 
-          if (image && !tags.image) {
-            // download image and put it into imageBuffer
+          if (image) {
             try {
-              const res = await fetch(image, { timeout: 60000 });
+              const res = await fetch(image);
               const imageBuffer = Buffer.from(await res.arrayBuffer());
 
               id3Tags.image = {
