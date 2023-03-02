@@ -2,6 +2,9 @@
   "name": "node-podcatcher",
   "version": "1.0.0",
   "main": "index.js",
+  "engines": {
+    "node": "18.13.0"
+  },
   "license": "MIT",
   "type": "module",
   "repository": "https://github.com/geoffoliver/node-podcatcher.git",
