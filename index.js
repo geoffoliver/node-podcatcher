@@ -1,8 +1,9 @@
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { Parser } from 'xml2js';
+import { Parser, processors } from 'xml2js';
 import nodeID3 from 'node-id3';
 import * as VLC from 'vlc-client';
+import chalk from 'chalk';
 
 const { update, TagConstants } = nodeID3;
 
@@ -39,16 +40,16 @@ if (vlcHost.includes(':')) {
 
 if (showHelp || !opmlPath || !outputDir) {
   console.log('Usage: node index.js --opml <path to OPML file> --output <path to output directory>');
-  console.log('Optional arguments:');
-  console.log('--max <max simultaneous downloads>');
-  console.log('--age <max age in days>');
-  console.log('--host <VLC host>');
-  console.log('--port <VLC port>');
-  console.log('--password <VLC password>');
+  console.log(chalk.grey('Optional arguments:'));
+  console.log(chalk.grey('--max <max simultaneous downloads>'));
+  console.log(chalk.grey('--age <max age in days>'));
+  console.log(chalk.grey('--host <VLC host>'));
+  console.log(chalk.grey('--port <VLC port>'));
+  console.log(chalk.grey('--password <VLC password>'));
   process.exit(showHelp || (opmlPath && outputDir) ? 0 : 1);
 }
 
-console.log(`|${'-'.repeat(80)}
+console.log(chalk.blue(`|${'-'.repeat(80)}
 | Downloading podcasts with settings:
 | > OPML File: ${opmlPath}
 | > Output Directory: ${outputDir}
@@ -56,7 +57,7 @@ console.log(`|${'-'.repeat(80)}
 | > Max Age: ${maxAge} days
 | > VLC Host: ${vlcHost}
 | > VLC Port: ${vlcPort}
-|${'-'.repeat(80)}`);
+|${'-'.repeat(80)}`));
 
 const tooOld = new Date();
 tooOld.setDate(tooOld.getDate() - maxAge);
@@ -70,7 +71,7 @@ try {
     password: vlcPassword,
   });
 } catch (ex) {
-  console.error(`Error connecting to VLC: ${ex.message}`);
+  console.error(chalk.orange(`Error connecting to VLC: ${ex.message}`));
 }
 
 const trackingFile = join(outputDir, 'downloaded.json');
@@ -104,7 +105,7 @@ const downloadPodcast = async (url, path, shortPath) => {
     return Promise.resolve(false);
   }
 
-  console.log(`> Downloading "${shortPath}"`);
+  console.log(chalk.green(`> Downloading "${shortPath}"`));
 
   return new Promise(async (resolve, reject) => {
     try {
@@ -122,13 +123,15 @@ const downloadPodcast = async (url, path, shortPath) => {
 const opmlFile = readFileSync(opmlPath);
 const parser = new Parser();
 parser.parseString(opmlFile, async (err, result) => {
-  if (err) throw err;
+  if (err) {
+    throw err;
+  }
 
   try {
     // try to get the status to see if we can connect
     await vlc.status();
   } catch (ex) {
-    console.error(`[ERROR] Unable to connect to VLC: ${ex.message}`);
+    console.error(chalk.red(`[ERROR] Unable to connect to VLC: ${ex.message}`));
     vlc = null;
   }
 
@@ -156,60 +159,67 @@ parser.parseString(opmlFile, async (err, result) => {
       const artistName = rss.rss.channel[0].title[0].trim();
       const podcastName = sanitizeFilename(artistName);
       const image = rss.rss.channel[0].image ? rss.rss.channel[0].image[0].url : null;
-      const episode = rss.rss.channel[0].item[0];
-      const episodeTitle = episode.title[0].trim();
-      const episodeUrl = episode.enclosure[0].$.url;
-      const episodeDate = episode.pubDate[0];
+      const episodes = rss.rss.channel[0].item;
 
-      // sanitize filename
-      const podDir = join(outputDir, podcastName);
-      const date = new Date(episodeDate);
-      const formattedDate = date.toISOString().split('T')[0];
-      const fileName = sanitizeFilename(`${formattedDate} - ${episodeTitle}.mp3`);
-      const filePath = join(podDir, fileName);
-      const shortPath = join(podcastName, fileName);
+      if (episodes.length) {
+        episodes.sort((a, b) => {
+          return new Date(b.pubDate[0]) - new Date(a.pubDate[0]);
+        });
+        const episode = episodes[0];
+        const episodeTitle = episode.title[0].trim();
+        const episodeDate = episode.pubDate[0];
+        const episodeUrl = episode.enclosure[0].$.url;
 
-      // skip if episode is too old
-      if (date > tooOld) {
-        // create podcast directory if it doesn't exist
-        if (!existsSync(podDir)) {
-          mkdirSync(podDir, { recursive: true });
-        }
+        // sanitize filename
+        const podDir = join(outputDir, podcastName);
+        const date = new Date(episodeDate);
+        const formattedDate = date.toISOString().split('T')[0];
+        const fileName = sanitizeFilename(`${formattedDate} - ${episodeTitle}.mp3`);
+        const filePath = join(podDir, fileName);
+        const shortPath = join(podcastName, fileName);
 
-        const downloaded = await downloadPodcast(episodeUrl, filePath, shortPath);
-
-        if (downloaded) {
-          const id3Tags = {
-            date: formattedDate.replace(/-/g, '/'),
-            title: episodeTitle,
-            artist: artistName,
-          };
-
-          if (image) {
-            try {
-              const res = await fetch(image);
-              const imageBuffer = Buffer.from(await res.arrayBuffer());
-
-              id3Tags.image = {
-                mime: image.includes('.jpg') ? 'image/jpeg' : 'image/png',
-                type: {
-                  id: TagConstants.AttachedPicture.PictureType.FRONT_COVER,
-                },
-                description: 'Cover image',
-                imageBuffer,
-              };
-            } catch (ex) {
-              console.error(`[ERROR] Unable to download image: ${ex.message}`);
-            }
+        // skip if episode is too old
+        if (date > tooOld) {
+          // create podcast directory if it doesn't exist
+          if (!existsSync(podDir)) {
+            mkdirSync(podDir, { recursive: true });
           }
 
-          update(id3Tags, filePath);
+          const downloaded = await downloadPodcast(episodeUrl, filePath, shortPath);
 
-          if (vlc) {
-            try {
-              await vlc.addToPlaylist(`file://${filePath}`);
-            } catch (ex) {
-              console.error(`[ERROR] Unable to add item to VLC playlist: ${ex.message}`);
+          if (downloaded) {
+            const id3Tags = {
+              date: formattedDate.replace(/-/g, '/'),
+              title: episodeTitle,
+              artist: artistName,
+            };
+
+            if (image) {
+              try {
+                const res = await fetch(image);
+                const imageBuffer = Buffer.from(await res.arrayBuffer());
+
+                id3Tags.image = {
+                  mime: image.includes('.jpg') ? 'image/jpeg' : 'image/png',
+                  type: {
+                    id: TagConstants.AttachedPicture.PictureType.FRONT_COVER,
+                  },
+                  description: 'Cover image',
+                  imageBuffer,
+                };
+              } catch (ex) {
+                console.error(chalk.red(`[ERROR] Unable to download image: ${ex.message}`));
+              }
+            }
+
+            update(id3Tags, filePath);
+
+            if (vlc) {
+              try {
+                await vlc.addToPlaylist(`file://${filePath}`);
+              } catch (ex) {
+                console.error(chalk.red(`[ERROR] Unable to add item to VLC playlist: ${ex.message}`));
+              }
             }
           }
         }
@@ -224,7 +234,8 @@ parser.parseString(opmlFile, async (err, result) => {
         return downloadRSSFeed(nextFeedUrl);
       }
     } catch (error) {
-      console.error(`[ERROR] ${feedUrl} - ${error}`);
+      console.log(error);
+      console.error(chalk.red(`[ERROR] ${feedUrl} - ${error}`));
     }
   };
 

@@ -9,6 +9,7 @@
   "type": "module",
   "repository": "https://github.com/geoffoliver/node-podcatcher.git",
   "dependencies": {
+    "chalk": "^5.2.0",
     "node-id3": "^0.2.6",
     "vlc-client": "^1.1.1",
     "xml2js": "^0.4.23"
