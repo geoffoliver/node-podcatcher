@@ -128,7 +128,7 @@ parser.parseString(opmlFile, async (err, result) => {
     // try to get the status to see if we can connect
     await vlc.status();
   } catch (ex) {
-    console.error(`Error connecting to VLC: ${ex.message}`);
+    console.error(`[ERROR] Unable to connect to VLC: ${ex.message}`);
     vlc = null;
   }
 
@@ -199,7 +199,7 @@ parser.parseString(opmlFile, async (err, result) => {
                 imageBuffer,
               };
             } catch (ex) {
-              console.error(`Error downloading image: ${ex.message}`);
+              console.error(`[ERROR] Unable to download image: ${ex.message}`);
             }
           }
 
@@ -209,7 +209,7 @@ parser.parseString(opmlFile, async (err, result) => {
             try {
               await vlc.addToPlaylist(`file://${filePath}`);
             } catch (ex) {
-              console.error(`Error adding to VLC: ${ex.message}`);
+              console.error(`[ERROR] Unable to add item to VLC playlist: ${ex.message}`);
             }
           }
         }
