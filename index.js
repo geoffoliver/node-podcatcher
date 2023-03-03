@@ -132,7 +132,7 @@ parser.parseString(opmlFile, async (err, result) => {
 
         if (downloaded) {
           const id3Tags = {
-            date: formattedDate,
+            date: formattedDate.replace(/-/g, '/'),
             title: episodeTitle,
             artist: artistName,
           };
