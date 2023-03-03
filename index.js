@@ -161,7 +161,7 @@ parser.parseString(opmlFile, async (err, result) => {
       const image = rss.rss.channel[0].image ? rss.rss.channel[0].image[0].url : null;
       const episodes = rss.rss.channel[0].item;
 
-      if (episodes.length) {
+      if (episodes.length > 0) {
         episodes.sort((a, b) => {
           return new Date(b.pubDate[0]) - new Date(a.pubDate[0]);
         });
