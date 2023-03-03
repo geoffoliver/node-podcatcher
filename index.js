@@ -3,7 +3,7 @@ import { join } from 'path';
 import { Parser } from 'xml2js';
 import nodeID3 from 'node-id3';
 
-const { read, update, TagConstants } = nodeID3;
+const { update, TagConstants } = nodeID3;
 
 const defaultMaxDownloads = 5;
 const defaultMaxAge = 1;

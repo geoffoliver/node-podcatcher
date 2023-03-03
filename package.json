@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "engines": {
-    "node": "18.13.0"
+    "node": "18.14.2"
   },
   "license": "MIT",
   "type": "module",
