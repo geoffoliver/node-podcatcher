@@ -2,25 +2,49 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { Parser } from 'xml2js';
 import nodeID3 from 'node-id3';
+import * as VLC from 'vlc-client';
 
 const { update, TagConstants } = nodeID3;
 
 const defaultMaxDownloads = 5;
 const defaultMaxAge = 1;
+const defaultVlcHost = '127.0.0.1';
+const defaultVlcPassword = 'password';
+const defaultVlcPort = 8080;
 
 const opmlIndex = process.argv.indexOf('--opml');
 const outputIndex = process.argv.indexOf('--output');
 const maxIndex = process.argv.indexOf('--max');
 const ageIndex = process.argv.indexOf('--age');
+const vlcHostIndex = process.argv.indexOf('--host');
+const vlcPortIndex = process.argv.indexOf('--port');
+const vlcPwdIndex = process.argv.indexOf('--password');
 const showHelp = process.argv.includes('--help');
 
 const opmlPath = opmlIndex > -1 ? process.argv[opmlIndex + 1] : null;
 const outputDir = outputIndex > -1 ? process.argv[outputIndex + 1] : null;
 const maxDownloads = maxIndex > -1 ? parseInt(process.argv[maxIndex + 1]) : defaultMaxDownloads;
 const maxAge = ageIndex > -1 ? parseInt(process.argv[ageIndex + 1]) : defaultMaxAge;
+const vlcPassword = vlcPwdIndex > -1 ? process.argv[vlcPwdIndex + 1] : defaultVlcPassword;
+let vlcHost = vlcHostIndex > -1 ? process.argv[vlcHostIndex + 1] : defaultVlcHost;
+let vlcPort = vlcPortIndex > -1 ? parseInt(process.argv[vlcPortIndex + 1]) : defaultVlcPort;
+
+if (vlcHost.includes(':')) {
+  const parts = vlcHost.split(':');
+  if (parts.length === 2 && parts[0].trim() !== '' && parts[1].trim() !== '') {
+    vlcHost = parts[0].trim();
+    vlcPort = parseInt(parts[1].trim());
+  }
+}
 
 if (showHelp || !opmlPath || !outputDir) {
-  console.error('Usage: node index.js --opml <path to OPML file> --output <path to output directory> [--max <max simultaneous downloads>] [--age <max age in days>]');
+  console.log('Usage: node index.js --opml <path to OPML file> --output <path to output directory>');
+  console.log('Optional arguments:');
+  console.log('--max <max simultaneous downloads>');
+  console.log('--age <max age in days>');
+  console.log('--host <VLC host>');
+  console.log('--port <VLC port>');
+  console.log('--password <VLC password>');
   process.exit(showHelp || (opmlPath && outputDir) ? 0 : 1);
 }
 
@@ -30,10 +54,24 @@ console.log(`|${'-'.repeat(80)}
 | > Output Directory: ${outputDir}
 | > Max Simultaneous Downloads: ${maxDownloads}
 | > Max Age: ${maxAge} days
+| > VLC Host: ${vlcHost}
+| > VLC Port: ${vlcPort}
 |${'-'.repeat(80)}`);
 
 const tooOld = new Date();
 tooOld.setDate(tooOld.getDate() - maxAge);
+
+let vlc = null;
+
+try {
+  vlc = new VLC.Client({
+    ip: vlcHost,
+    port: vlcPort,
+    password: vlcPassword,
+  });
+} catch (ex) {
+  console.error(`Error connecting to VLC: ${ex.message}`);
+}
 
 const trackingFile = join(outputDir, 'downloaded.json');
 if (!existsSync(trackingFile)) {
@@ -62,10 +100,11 @@ const downloadPodcast = async (url, path, shortPath) => {
   }
 
   if (existsSync(path)) {
+    trackDownload(url);
     return Promise.resolve(false);
   }
 
-  console.log(`Downloading "${shortPath}"`);
+  console.log(`> Downloading "${shortPath}"`);
 
   return new Promise(async (resolve, reject) => {
     try {
@@ -85,6 +124,14 @@ const parser = new Parser();
 parser.parseString(opmlFile, async (err, result) => {
   if (err) throw err;
 
+  try {
+    // try to get the status to see if we can connect
+    await vlc.status();
+  } catch (ex) {
+    console.error(`Error connecting to VLC: ${ex.message}`);
+    vlc = null;
+  }
+
   const feedUrls = [];
   result.opml.body[0].outline.forEach((outline) => {
     feedUrls.push(outline.$.xmlUrl);
@@ -95,6 +142,7 @@ parser.parseString(opmlFile, async (err, result) => {
 
   const downloadRSSFeed = async (feedUrl) => {
     try {
+      console.log(`Processing feed ${feedUrl.slice(0, 64)+(feedUrl.length > 64 ? '...' : '')}`);
       // we're downloading the file, we can remove the URl from the queue
       downloadQueue.splice(downloadQueue.indexOf(feedUrl), 1);
 
@@ -156,6 +204,14 @@ parser.parseString(opmlFile, async (err, result) => {
           }
 
           update(id3Tags, filePath);
+
+          if (vlc) {
+            try {
+              await vlc.addToPlaylist(`file://${filePath}`);
+            } catch (ex) {
+              console.error(`Error adding to VLC: ${ex.message}`);
+            }
+          }
         }
       }
 
