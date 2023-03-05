@@ -51,6 +51,7 @@ if (showHelp || !opmlPath || !outputDir) {
 
 console.log(chalk.blue(`|${'-'.repeat(80)}
 | Downloading podcasts with settings:
+| > Date: ${new Date().toString()}
 | > OPML File: ${opmlPath}
 | > Output Directory: ${outputDir}
 | > Max Simultaneous Downloads: ${maxDownloads}
